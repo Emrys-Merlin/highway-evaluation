@@ -1,4 +1,5 @@
 #!/usr/bin/ruby
+# frozen_string_literal: true
 
 require 'daru'
 include Daru
@@ -13,13 +14,33 @@ class Background
   def initialize(path)
     @path = path
     @df = DataFrame.from_csv(path)
-    @df.vectors = Index.new(@df.vectors.to_a.map{|i| i.to_sym})
+    @df.vectors = Index.new(@df.vectors.to_a.map(&:to_sym))
 
-    raise 'A column called \'start\' ist needed.' unless @df.vectors.to_a.include?(:start)
-    raise 'A column called \'stop\' ist needed.' unless @df.vectors.to_a.include?(:stop)
-    raise 'A column called \'date\' ist needed.' unless @df.vectors.to_a.include?(:date)
-    raise 'A column called \'tz\' ist needed.' unless @df.vectors.to_a.include?(:tz)
+    residue = [:start, :stop, :date, :tz] - @df.vectors.to_a
 
+    unless residue.empty?
+      raise 'The columns start, stop, date and tz are necessary.'
+    end
+
+    convert_to_dt
+  end
+
+  def duration
+    @df[:duration] = @df[:stopdt, :startdt].collect_rows do |row|
+      result = ((row[:stopdt] - row[:startdt]) * 24 * 60 * 60).to_i
+      raise 'Negative duration detected.' if result.negative?
+      result
+    end
+  end
+
+  def save(path = nil)
+    @path = path unless path.nil?
+    @df.write_csv(path)
+  end
+
+  private
+
+  def convert_to_dt
     @df[:startdt] = Daru::Vector.new(Array.new(@df.nrows))
     @df[:stopdt] = Daru::Vector.new(Array.new(@df.nrows))
 
@@ -31,18 +52,5 @@ class Background
       row[:stopdt] = DateTime.strptime(stop, format)
       row
     end
-  end
-
-  def duration
-    @df[:duration] = @df[:stopdt, :startdt].collect_rows do |row|
-      result = ((row[:stopdt] - row[:startdt])*24*60*60).to_i
-      raise 'Negative duration detected.' if result < 0
-      result
-    end
-  end
-
-  def save(path = nil)
-    @path = path unless path.nil?
-    @df.write_csv(path)
   end
 end

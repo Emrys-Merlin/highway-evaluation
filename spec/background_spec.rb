@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require 'minitest/autorun'
 require 'minitest/spec'
 require 'minitest/pride'
@@ -6,6 +7,8 @@ require_relative '../background.rb'
 describe Background do
   before do
     @td = Dir.mktmpdir('bg_spec')
+    @stop = DateTime.parse('2018-07-17 12:30:15+0000')
+    @start = DateTime.parse('2018-07-17 12:30:10+0000')
   end
 
   after do
@@ -40,8 +43,8 @@ describe Background do
     end
     it 'converts start and stop to DateTime object' do
       bg = Background.new('./data/background.csv')
-      assert_equal(DateTime.parse('2018-07-17 12:30:10+0000'), bg.df[:startdt][0])
-      assert_equal(DateTime.parse('2018-07-17 12:30:15+0000'), bg.df[:stopdt][0])
+      assert_equal(@start, bg.df[:startdt][0])
+      assert_equal(@stop, bg.df[:stopdt][0])
     end
   end
 
@@ -49,7 +52,7 @@ describe Background do
     before do
       @bg = Background.new('./data/background.csv')
       @bg.duration
-      @dur = Daru::Vector.new([5,47*60+28-(17*60+20)])
+      @dur = Daru::Vector.new([5, 47 * 60 + 28 - (17 * 60 + 20)])
     end
     it 'computes the right duration' do
       assert_equal(@dur, @bg.df[:duration])
@@ -63,6 +66,5 @@ describe Background do
   end
 
   describe '#save' do
-
   end
 end
