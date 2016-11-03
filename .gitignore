@@ -1,2 +1,6 @@
 .bundle/
 *~
+/.ipynb_checkpoints
+/rbczmq/
+venv
+Untitled*

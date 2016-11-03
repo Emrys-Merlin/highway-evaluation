@@ -3,19 +3,39 @@ GEM
   specs:
     ast (2.3.0)
     backports (3.6.8)
+    bond (0.5.1)
+    clbustos-rtf (0.4.2)
     coderay (1.1.1)
     concurrent-ruby (1.0.2)
     daru (0.1.4.1)
       backports
+    data_uri (0.1.0)
     gnuplotrb (0.3.4)
       hamster (~> 3.0)
     hamster (3.0.0)
       concurrent-ruby (~> 1.0)
+    iruby (0.2.9)
+      bond (~> 0.5)
+      data_uri (~> 0.1)
+      mimemagic (~> 0.3)
+      multi_json (~> 1.11)
     method_source (0.8.2)
+    mimemagic (0.3.2)
+    multi_json (1.12.1)
+    narray (0.6.1.2)
     nyaplot (0.1.6)
     parser (2.3.1.4)
       ast (~> 2.2)
     powerpack (0.1.1)
+    prawn (0.8.4)
+      prawn-core (>= 0.8.4, < 0.9)
+      prawn-layout (>= 0.8.4, < 0.9)
+      prawn-security (>= 0.8.4, < 0.9)
+    prawn-core (0.8.4)
+    prawn-layout (0.8.4)
+    prawn-security (0.8.4)
+    prawn-svg (0.9.1.11)
+      prawn (>= 0.8.4)
     pry (0.10.4)
       coderay (~> 1.1.0)
       method_source (~> 0.8.1)
@@ -24,14 +44,24 @@ GEM
       pry (~> 0.9)
       yard (~> 0.8)
     rainbow (2.1.0)
+    rbczmq (1.7.9)
+    reportbuilder (1.4.2)
+      clbustos-rtf (~> 0.4.0)
+      prawn (~> 0.8.4)
+      prawn-svg (~> 0.9.1)
+      text-table (~> 1.2)
     rubocop (0.44.1)
       parser (>= 2.3.1.1, < 3.0)
       powerpack (~> 0.1)
       rainbow (>= 1.99.1, < 3.0)
       ruby-progressbar (~> 1.7)
       unicode-display_width (~> 1.0, >= 1.0.1)
+    ruby-ole (1.2.12)
     ruby-progressbar (1.8.1)
     slop (3.6.0)
+    spreadsheet (1.1.3)
+      ruby-ole (>= 1.0)
+    text-table (1.2.4)
     unicode-display_width (1.1.1)
     yard (0.9.5)
 
@@ -41,10 +71,15 @@ PLATFORMS
 DEPENDENCIES
   daru
   gnuplotrb
+  iruby
+  narray
   nyaplot
   pry
   pry-doc
+  rbczmq
+  reportbuilder
   rubocop
+  spreadsheet
 
 BUNDLED WITH
    1.13.6
