@@ -8,15 +8,52 @@ include Daru
 # It takes timestamps from highway background concentration
 # measurements and computs associated quantities (i.e. average
 # background nox and co2, duration of the measurement,...)
-class Background
-  attr_accessor :df, :path
+class Background < Daru::DataFrame
+  def initialize(source, opts = {})
+    super
+    setup
+  end
 
-  def initialize(path)
-    @path = path
-    @df = DataFrame.from_csv(path)
-    @df.vectors = Index.new(@df.vectors.to_a.map(&:to_sym))
+  def self.from_csv(path, opts = {}, &block)
+    new(super.to_h)
+  end
 
-    residue = [:start, :stop, :date, :tz] - @df.vectors.to_a
+  def duration
+    self[:duration] = self[:stopdt, :startdt].collect_rows do |row|
+      result = ((row[:stopdt] - row[:startdt]) * 24 * 60 * 60).to_i
+      raise 'Negative duration detected.' if result.negative?
+      result
+    end
+  end
+
+  def offset(offset)
+    self[:offset] = Daru::Vector.new(Array.new(self.nrows, offset))
+  end
+
+  def retrieve_background(raw_path, cn)
+    raise 'No path to timeseries file give'b if raw_path.nil?
+
+    ts = DataFrame.from_csv(raw_path)
+    ts.vectors = Index.new(ts.vectors.to_a.map(&:to_sym))
+    ts.index = DateTimeIndex.new(ts[:timestamp])
+    self[cn] = Daru::Vector.new_with_size(self.nrows)
+    self.map_rows! do |row|
+      start = row[:startdt]
+      stop = row[:stopdt]
+      range = ts[:timestamp].collect do |t|
+        start <= t and t < stop ? true : false
+      end
+      row[cn] = average(ts[cn].where(range)) if range.include?(true)
+      row
+    end
+  end
+
+  private
+
+  def setup
+    self.vectors = Index.new(self.vectors.to_a.map(&:to_sym))
+
+    residue = [:start, :stop, :date, :tz] - @vectors.to_a
 
     unless residue.empty?
       raise 'The columns start, stop, date and tz are necessary.'
@@ -25,32 +62,36 @@ class Background
     convert_to_dt
   end
 
-  def duration
-    @df[:duration] = @df[:stopdt, :startdt].collect_rows do |row|
-      result = ((row[:stopdt] - row[:startdt]) * 24 * 60 * 60).to_i
-      raise 'Negative duration detected.' if result.negative?
-      result
-    end
-  end
-
-  def save(path = nil)
-    @path = path unless path.nil?
-    @df.write_csv(path)
-  end
-
-  private
-
   def convert_to_dt
-    @df[:startdt] = Daru::Vector.new(Array.new(@df.nrows))
-    @df[:stopdt] = Daru::Vector.new(Array.new(@df.nrows))
-
-    @df.map_rows! do |row|
-      start = row[:date] + ' ' + row[:start] + '' + row[:tz]
-      stop = row[:date] + ' ' + row[:stop] + '' + row[:tz]
+    self[:startdt] = Daru::Vector.new(Array.new(self.nrows))
+    self[:stopdt] = Daru::Vector.new(Array.new(self.nrows))
+    self.map_rows! do |row|
+      start = row[:date] + ' ' + row[:start] + ' ' + row[:tz]
+      stop = row[:date] + ' ' + row[:stop] + ' ' + row[:tz]
       format = '%d.%m.%Y %H:%M:%S %Z'
       row[:startdt] = DateTime.strptime(start, format)
       row[:stopdt] = DateTime.strptime(stop, format)
       row
     end
+  end
+
+  def average(frame)
+    lastr = nil
+    lasti = nil
+    res = 0.0 #Daru::Vector[frame.vectors.to_a]
+    weight = 0.0
+
+    frame.each_with_index do |r,i|
+      unless lastr.nil?
+        di = (i - lasti)
+        res += (r + lastr)*0.5*di
+        weight += di
+      end
+      lastr = r
+      lasti = i
+    end
+
+    res /= weight
+    res
   end
 end
