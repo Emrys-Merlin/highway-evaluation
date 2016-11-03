@@ -7,7 +7,10 @@ class Table < Background
     super
   end
 
-  def associate_background(bg_path, min_dur = 0, max_dist = Float::INFINITY)
+  def associate_background(bg_path, cns,
+                           min_dur = 0, max_dist = Float::INFINITY)
+    cns = [cns] unless cns.is_a?(Array)
+
     bg = DataFrame.from_csv(bg_path)
     bg.vectors = Index.new(bg.vectors.map{|i| i.to_sym})
     bg = bg.where(
@@ -22,11 +25,11 @@ class Table < Background
     bg[:startdt].map! do |s|
       DateTime.parse(s) if s.is_a?(String)
     end
+    cns.each do |cn|
+      self[(cn.to_s + '_background').to_sym] = Daru::Vector.new_with_size(self.nrows)
+    end
 
-    @df[:nox_background] = Daru::Vector.new_with_size(@df.nrows)
-    @df[:co2_background] = Daru::Vector.new_with_size(@df.nrows)
-
-    @df.map_rows! do |row|
+    self.map_rows! do |row|
       start = row[:startdt]
       stop = row[:stopdt]
 
@@ -37,12 +40,12 @@ class Table < Background
       da = (after[:startdt] - stop) * 24 * 60.to_f
 
       if db < max_dist or da < max_dist
-        if db < da
-          row[:nox_background] = before[:nox]
-          row[:co2_background] = before[:co2]
-        else
-          row[:nox_background] = after[:nox]
-          row[:co2_background] = after[:co2]
+        cns.each do |cn|
+          if db < da
+            row[(cn.to_s + '_background').to_sym] = before[cn]
+          else
+            row[(cn.to_s + '_background').to_sym] = after[cn]
+          end
         end
       else
         raise "No background value close enough at row #{row[:id]}."
@@ -52,19 +55,27 @@ class Table < Background
   end
 
   # TODO Fix such that NOx depends on CO2
-  def find_min(raw_path, interval)
-    bg = DataFrame.from_csv(raw_path, cn)
+  def find_min(raw_path, cn, interval)
+    bg = DataFrame.from_csv(raw_path)
+    bg.vectors = Index.new(bg.vectors.map{|i| i.to_sym })
 
-    interval = interval.to_f/(60.0*24.0)
+    residue = [:timestamp, cn] - bg.vectors.to_a
+    raise "timestamp and #{cn} column necessary" unless residue.empty?
 
-    min = (cn.to_s + "_min").to_sym
-    @df[min] = Daru::Vector.new_with_size(@df.nrows)
+    interval = interval.to_f / (60.0 * 24.0)
 
-    @df.map_rows! do |row|
-      bstart = row[:start] - interval
-      bstop = row[:start]
-      astart = row[:stop]
-      astop = row[:stop] + interval
+    bg[:timestamp].map! do |t|
+      DateTime.parse(t) if t.is_a?(String)
+    end
+
+    min = (cn.to_s + '_min').to_sym
+    self[min] = Daru::Vector.new_with_size(self.nrows)
+
+    self.map_rows! do |row|
+      bstart = row[:startdt] - interval
+      bstop = row[:startdt]
+      astart = row[:stopdt]
+      astop = row[:stopdt] + interval
 
       bi = bg[:timestamp].map do |t|
         bstart <= t and t < bstop ? true : false
@@ -78,12 +89,13 @@ class Table < Background
       after = bg[cn].where(ai).min
 
       row[min] = [before, after].min
+      row
     end
   end
 
   def compute_correction
-    @df[:nox_corr] = Daru::Vector.new_with_size(@df.nrows)
-    @df[:co2_corr] = Daru::Vector.new_with_size(@df.nrows)
+    self[:nox_corr] = Daru::Vector.new_with_size(self.nrows)
+    self[:co2_corr] = Daru::Vector.new_with_size(self.nrows)
 
     df.map_rows! do |row|
       unless row[:nox] < row[:nox_background] or row[:co2] < row[:co2_background]
