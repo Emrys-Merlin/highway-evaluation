@@ -27,7 +27,7 @@ class Background < Daru::DataFrame
   end
 
   def offset(offset)
-    self[:offset] = Daru::Vector.new(Array.new(self.nrows, offset))
+    self[:offset] = Daru::Vector.new(Array.new(nrows, offset))
   end
 
   def retrieve_background(raw_path, cn)
@@ -36,12 +36,12 @@ class Background < Daru::DataFrame
     ts = DataFrame.from_csv(raw_path)
     ts.vectors = Index.new(ts.vectors.to_a.map(&:to_sym))
     ts.index = DateTimeIndex.new(ts[:timestamp])
-    self[cn] = Daru::Vector.new_with_size(self.nrows)
-    self.map_rows! do |row|
+    self[cn] = Daru::Vector.new_with_size(nrows)
+    map_rows! do |row|
       start = row[:startdt]
       stop = row[:stopdt]
       range = ts[:timestamp].collect do |t|
-        start <= t and t < stop ? true : false
+        (start <= t) && t < stop ? true : false
       end
       row[cn] = average(ts[cn].where(range)) if range.include?(true)
       row
@@ -51,7 +51,7 @@ class Background < Daru::DataFrame
   private
 
   def setup
-    self.vectors = Index.new(self.vectors.to_a.map(&:to_sym))
+    self.vectors = Index.new(vectors.to_a.map(&:to_sym))
 
     residue = [:start, :stop, :date, :tz] - @vectors.to_a
 
@@ -63,9 +63,9 @@ class Background < Daru::DataFrame
   end
 
   def convert_to_dt
-    self[:startdt] = Daru::Vector.new(Array.new(self.nrows))
-    self[:stopdt] = Daru::Vector.new(Array.new(self.nrows))
-    self.map_rows! do |row|
+    self[:startdt] = Daru::Vector.new(Array.new(nrows))
+    self[:stopdt] = Daru::Vector.new(Array.new(nrows))
+    map_rows! do |row|
       start = row[:date] + ' ' + row[:start] + ' ' + row[:tz]
       stop = row[:date] + ' ' + row[:stop] + ' ' + row[:tz]
       format = '%d.%m.%Y %H:%M:%S %Z'
@@ -78,13 +78,13 @@ class Background < Daru::DataFrame
   def average(frame)
     lastr = nil
     lasti = nil
-    res = 0.0 #Daru::Vector[frame.vectors.to_a]
+    res = 0.0 # Daru::Vector[frame.vectors.to_a]
     weight = 0.0
 
-    frame.each_with_index do |r,i|
+    frame.each_with_index do |r, i|
       unless lastr.nil?
         di = (i - lasti)
-        res += (r + lastr)*0.5*di
+        res += (r + lastr) * 0.5 * di
         weight += di
       end
       lastr = r

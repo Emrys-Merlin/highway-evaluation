@@ -79,14 +79,13 @@ describe Background do
 
   describe '#average' do
     before do
-      @av = Background.new({start: [],
-                            stop: [],
-                            date: [],
-                            tz: []})
+      @av = Background.new(start: [],
+                           stop: [],
+                           date: [],
+                           tz: [])
     end
   end
 
   describe '#retrieve_background' do
-
   end
 end
