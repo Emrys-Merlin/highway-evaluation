@@ -6,19 +6,19 @@ require_relative '../table.rb'
 
 describe Background do
   before do
-    @tb = Table.new({start: ['12:00:00'],
-                     stop: ['12:05:00'],
-                     date: ['07.07.2016'],
-                     tz: ['utc']})
+    @tb = Table.new(start: ['12:00:00'],
+                    stop: ['12:05:00'],
+                    date: ['07.07.2016'],
+                    tz: ['utc'])
   end
 
-  describe '#associate_background' do
-    it 'associates the right background' do
-      @tb.associate_background('./data/tb_background.csv',
-                               :nox,
-                               50,
-                               3)
-      assert_equal(1,@tb[:nox_background][0])
+  describe '#assign_background' do
+    it 'assigns the right background' do
+      @tb.assign_background('./data/tb_background.csv',
+                            :nox,
+                            50,
+                            3)
+      assert_equal(1, @tb[:nox_background][0])
     end
   end
 
