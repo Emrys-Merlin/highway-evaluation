@@ -31,7 +31,7 @@ class Background < Daru::DataFrame
   end
 
   def retrieve_background(raw_path, cn)
-    raise 'No path to timeseries file give'b if raw_path.nil?
+    raise 'No path to timeseries file given' if raw_path.nil?
 
     ts = DataFrame.from_csv(raw_path)
     ts.vectors = Index.new(ts.vectors.to_a.map(&:to_sym))
