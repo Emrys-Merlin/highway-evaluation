@@ -72,8 +72,94 @@ class Table < Background
     end
   end
 
-  def compute_ratio(nox_path, co2_path, suffix = '_background')
+  def compute_ratio(nox_path, co2_path, suffix = '_background',
+                    co2_min = 0.0)
+    nox = DataFrame.from_csv(nox_path)
+    nox.vectors = Index.new(nox.vectors.map{|i| i.to_sym })
+    co2 = DataFrame.from_csv(co2_path)
+    co2.vectors = Index.new(co2.vectors.map{|i| i.to_sym })
+
+    nox[:timestamp].map! do |t|
+      DateTime.parse(t) if t.is_a?(String)
+    end
+    co2[:timestamp].map! do |t|
+      DateTime.parse(t) if t.is_a?(String)
+    end
     
+    nox_bg = ('nox' + suffix).to_sym
+    co2_bg = ('co2' + suffix).to_sym
+
+    [nox_bg, co2_bg].each do |bg|
+      unless vectors.to_a.include?(bg)
+        self[bg] = Daru::Vector.new_with_size(nrows, 0.0)
+      end
+    end
+
+    self[:ratio] = Array.new(nrows, 0.0)
+
+    self.map_rows! do |row|
+      start = row[:startdt]
+      stop = row[:stopdt]
+
+      noxl = nox.where(nox[:timestamp].map do |t|
+                         start <= t and t < stop ? true : false
+                       end)
+      co2l = co2.where(nox[:timestamp].map do |t|
+                         start <= t and t < stop ? true : false
+                       end)
+
+      lastr = nil
+      lastt = nil
+      weight = 0.0
+
+      co2l.each_row do |r|
+        noxi = nox[:timestamp].map do |t|
+          t <= r[:timestamp]
+        end
+        next unless noxi.to_a.include?(true)
+        n = noxl.where(noxi).last(1).row[0]
+        if n[:timestamp] == r[:timestamp]
+          value = n[:nox]
+        else
+          noxi = nox[:timestamp].map do |t|
+            t > r[:timestamp]
+          end
+          break unless noxi.to_a.include?(true)
+          m = noxl.where(noxi).first(1).row[0]
+          # linear interpolation
+          value = (m[:nox] - n[:nox]).to_f
+          value /= (m[:timestamp] - n[:timestamp]).to_f
+          value *= (r[:timestamp] - n[:timestamp]).to_f
+          value += n[:nox].to_f
+        end
+
+        ratio = (value.to_f - row[nox_bg])
+        ratio /= (r[:co2] - row[co2_bg])
+
+        # trapezoidal rule
+        unless lastr.nil?
+          delta =  (r[:timestamp] - lastt)
+          row[:ratio] += 0.5 * (ratio + lastr) * delta
+          weight += delta
+        end
+        lastr = ratio
+        lastt = r[:timestamp]
+      end
+
+      row[:ratio] /= weight
+
+      row
+    end
+    self
+  end
+
+  # The NOx and CO2 time series may be shifted by a constant
+  # time. This can be accounted for by the following column. It is
+  # positive if a peak shows later in the CO2 time series than in the
+  # NOx time series.
+  def co2_offset(offset = 0.0)
+    self[:co2_offset] = Daru::Vector[Array.new(nrows, offset)]
+    self
   end
 
   def compute_correction

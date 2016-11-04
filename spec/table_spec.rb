@@ -4,7 +4,7 @@ require 'minitest/spec'
 require 'minitest/pride'
 require_relative '../table.rb'
 
-describe Background do
+describe Table do
   before do
     @tb = Table.new(start: ['12:00:00'],
                     stop: ['12:05:00'],
@@ -37,6 +37,27 @@ describe Background do
       assert_equal(70, @tb[:nox_min][0])
       @tb.find_min('./data/table.csv', :nox, 3)
       assert_equal(80, @tb[:nox_min][0])
+    end
+  end
+
+  describe '#co2_offset' do
+    it 'adds a column with the constant offset' do
+      vec = Daru::Vector[Array.new(@tb.nrows, 5)]
+      @tb.co2_offset(5)
+      assert_equal(vec, @tb[:co2_offset])
+    end
+
+    it 'returns a Table object' do
+      assert(@tb.co2_offset(5).is_a?(Table))
+    end
+  end
+
+  describe '#compute_ratio' do
+    it 'computes the right ratio' do
+      @tb[:nox_background] = Array.new(@tb.nrows, 0.0)
+      @tb[:co2_background] = Array.new(@tb.nrows, 0.0)
+      @tb.compute_ratio('./data/tb_nox.csv', './data/tb_co2.csv')
+      assert_in_delta(5.5, @tb[:ratio][0], 0.0001)
     end
   end
 end
