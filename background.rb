@@ -26,8 +26,11 @@ class Background < Daru::DataFrame
     end
   end
 
-  def offset(offset)
-    self[:offset] = Daru::Vector.new(Array.new(nrows, offset))
+  # offset between the time the instrument was close enough to the
+  # measured vehicle and the time when the exhaust gases reached the
+  # actual measurement chamber. Should be around 20 seconds.
+  def offset(offset = 20)
+    self[:offset] = Daru::Vector[Array.new(nrows, offset)]
   end
 
   def retrieve_background(raw_path, cn)
