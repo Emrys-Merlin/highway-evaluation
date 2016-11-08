@@ -60,4 +60,7 @@ describe Table do
       assert_in_delta(5.5, @tb[:ratio][0], 0.0001)
     end
   end
+
+  describe '#convert_to_kwh' do
+  end
 end

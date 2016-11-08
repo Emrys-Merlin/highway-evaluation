@@ -153,6 +153,12 @@ class Table < Background
     self
   end
 
+  # Converts the nox/co2 ratio to nox per kwh
+  # TODO: implement!
+  def convert_to_kwh
+    self
+  end
+
   # The NOx and CO2 time series may be shifted by a constant
   # time. This can be accounted for by the following column. It is
   # positive if a peak shows later in the CO2 time series than in the
@@ -160,21 +166,6 @@ class Table < Background
   def co2_offset(offset = 0.0)
     self[:co2_offset] = Daru::Vector[Array.new(nrows, offset)]
     self
-  end
-
-  def compute_correction
-    self[:nox_corr] = Daru::Vector.new_with_size(nrows)
-    self[:co2_corr] = Daru::Vector.new_with_size(nrows)
-
-    df.map_rows! do |row|
-      if row[:nox] < row[:nox_background] || row[:co2] < row[:co2_background]
-        raise "Background too high at row #{row[:id]}."
-      else
-        row[:nox_corr] = row[:nox] - row[:nox_background]
-        row[:co2_corr] = row[:co2] - row[:co2_background]
-      end
-      row
-    end
   end
 
   private
