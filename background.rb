@@ -28,27 +28,42 @@ class Background < Daru::DataFrame
 
   # offset between the time the instrument was close enough to the
   # measured vehicle and the time when the exhaust gases reached the
-  # actual measurement chamber. Should be around 20 seconds.
+  # actual measurement chamber. Should be around 20 seconds. For CO2
+  # time series the CO2 offset to NOx has to also be included.
   def offset(offset = 20)
     self[:offset] = Daru::Vector[Array.new(nrows, offset)]
+    self[:startdt] += self[:offset].recode do |o|
+      o.to_f/(60.0*60.0*24.0)
+    end
+    self[:stopdt] += self[:offset].recode do |o|
+      o.to_f/(60.0*60.0*24.0)
+    end
+    self
   end
 
+  # TODO: add error propagation. needs to be done in average
   def retrieve_background(raw_path, cn)
     raise 'No path to timeseries file given' if raw_path.nil?
 
     ts = DataFrame.from_csv(raw_path)
     ts.vectors = Index.new(ts.vectors.to_a.map(&:to_sym))
-    ts.index = DateTimeIndex.new(ts[:timestamp])
+    ts[:timestamp].map! do |t|
+      DateTime.parse(t) if t.is_a?(String)
+    end
     self[cn] = Daru::Vector.new_with_size(nrows)
     map_rows! do |row|
       start = row[:startdt]
       stop = row[:stopdt]
       range = ts[:timestamp].collect do |t|
-        (start <= t) && t < stop ? true : false
+        (start <= t) && t <= stop ? true : false
       end
-      row[cn] = average(ts[cn].where(range)) if range.include?(true)
+      row[cn] = average(ts[:timestamp, cn].where(range), cn) if range.include?(true)
       row
     end
+  end
+
+  def write_csv(filename, opts = {})
+    self[*(vectors.to_a - [:startdt, :stopdt])].write_csv(filename, opts)
   end
 
   private
@@ -66,34 +81,30 @@ class Background < Daru::DataFrame
   end
 
   def convert_to_dt
-    self[:startdt] = Daru::Vector.new(Array.new(nrows))
-    self[:stopdt] = Daru::Vector.new(Array.new(nrows))
+    [:startdt, :stopdt].each{|s| self[s] = Daru::Vector.new_with_size(nrows) }
     map_rows! do |row|
-      start = row[:date] + ' ' + row[:start] + ' ' + row[:tz]
-      stop = row[:date] + ' ' + row[:stop] + ' ' + row[:tz]
-      format = '%d.%m.%Y %H:%M:%S %Z'
-      row[:startdt] = DateTime.strptime(start, format)
-      row[:stopdt] = DateTime.strptime(stop, format)
+      format = '%d.%m.%Y%H:%M:%S%Z'
+      [:start, :stop].each do |s|
+        row[(s.to_s + 'dt').to_sym] = DateTime.strptime(row[:date] + row[s] +
+                                                        row[:tz], format)
+      end
       row
     end
   end
 
-  def average(frame)
+  def average(frame, cn)
     lastr = nil
-    lasti = nil
-    res = 0.0 # Daru::Vector[frame.vectors.to_a]
+    res = 0.0
     weight = 0.0
 
-    frame.each_with_index do |r, i|
+    frame.each_row do |r|
       unless lastr.nil?
-        di = (i - lasti)
-        res += (r + lastr) * 0.5 * di
+        di = (r[:timestamp] - lastr[:timestamp])*24*60*60
+        res += (r[cn] + lastr[cn]).to_f * 0.5 * di
         weight += di
       end
       lastr = r
-      lasti = i
     end
-
     res /= weight
     res
   end

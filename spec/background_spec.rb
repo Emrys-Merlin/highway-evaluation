@@ -70,22 +70,49 @@ describe Background do
   end
 
   describe '#offset' do
+    before do
+      @offset = 5
+      @vec = Daru::Vector[Array.new(@bg.nrows, @offset)]
+      @bg2 = @bg.dup
+      @bg.offset(@offset)
+    end
     it 'adds a column with the constant offset' do
-      vec = Daru::Vector[Array.new(@bg.nrows, 5)]
-      @bg.offset(5)
-      assert_equal(vec, @bg[:offset])
+      assert_equal(@vec, @bg[:offset])
+    end
+    it 'adds the right offset to startdt and stopdt' do
+      off = (@bg[:startdt][0] - @bg2[:startdt][0])*60*60*24
+      assert_equal(@offset, off)
     end
   end
 
-  describe '#average' do
+  describe '#write_csv' do
     before do
-      @av = Background.new(start: [],
-                           stop: [],
-                           date: [],
-                           tz: [])
+      @bg1 = Background.new(start: ['11:38:17'],
+                          stop: ['11:40:45'],
+                          date: ['08.11.2016'],
+                          tz: ['utc'])
+    end
+    it 'writes a file' do
+      path = @td + 'write_exist.csv'
+      @bg.write_csv(path)
+      assert(File.exist?(path))
+    end
+    it 'does not write statdt or stopdt' do
+      @bg1.write_csv(@td + 'write.csv')
+      df = DataFrame.from_csv(@td + 'write.csv')
+      df.vectors = Index.new(df.vectors.to_a.map{|i| i.to_sym})
+      assert_equal(df, @bg1[*(df.vectors.to_a)])
     end
   end
 
   describe '#retrieve_background' do
+    before do
+      @bg = Background.from_csv('./data/background.csv')
+    end
+    it 'computes the right background' do
+      @bg.retrieve_background('./data/bg_nox.csv', :nox)
+      assert_in_delta(3.5, @bg[:nox][0], 0.0001)
+      assert_in_delta(10, @bg[:nox][1], 0.0001)
+    end
   end
 end
