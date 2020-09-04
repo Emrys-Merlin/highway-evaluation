@@ -10,6 +10,3 @@ There are two resources which have to be combined by the scripts to
 yield the results. Firstly, there are the csv-files containing the
 measurement timestamps together with additional meta data. Secondly,
 there are the csv-files containing the trace gas time series.
-
-As soon as the project grows I will start to explain the different
-scripts in more detail to give an imperssion of the intended workflow.
