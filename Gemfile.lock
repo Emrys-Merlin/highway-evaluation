@@ -63,7 +63,7 @@ GEM
       ruby-ole (>= 1.0)
     text-table (1.2.4)
     unicode-display_width (1.1.1)
-    yard (0.9.5)
+    yard (0.9.25)
 
 PLATFORMS
   ruby
